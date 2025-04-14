@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-import { downloadTwitterMedia } from "../downloaders/twitter";
+import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
 import {
   isChannelMonitored,
   addMonitoredChannel,
@@ -76,20 +76,5 @@ export const handleCommands = async (message: Message) => {
       console.error("Error downloading media:", error);
       await message.react("❌");
     }
-  }
-};
-
-const isTwitterOrXLink = (url: string): boolean => {
-  try {
-    const parsedUrl = new URL(url);
-    const hostname = parsedUrl.hostname.toLowerCase();
-    return (
-      hostname === "x.com" ||
-      hostname === "twitter.com" ||
-      hostname === "fixupx.com"
-    );
-  } catch (error) {
-    // If the URL is invalid, return false
-    return false;
   }
 };

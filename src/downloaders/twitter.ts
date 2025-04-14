@@ -6,15 +6,17 @@ import { Config } from "twitter-downloader/lib/types/config";
 
 /**
  * Downloads media from a Twitter link
- * @param url The Twitter URL to download media from
+ * @param a The Twitter URL to download media from
  * @param outputDir Directory to save the downloaded media (default: './downloads')
  * @returns Promise resolving to the paths of downloaded files
  */
 export async function downloadTwitterMedia(
-  url: string,
+  initialUrl: string,
   outputDir: string = "./downloads",
   cookie: string
 ): Promise<string[]> {
+  const url = convertToTwitterUrl(initialUrl); // Convert to x.com link
+
   try {
     // Ensure the output directory exists
     if (!fs.existsSync(outputDir)) {
@@ -27,15 +29,14 @@ export async function downloadTwitterMedia(
       cookie: cookie, // to display sensitive / nsfw content (no default cookies)
     };
 
-    const { result, status } = await TwitterDL(url, options);
+    const { result, status, message } = await TwitterDL(url, options);
 
     if (status === "error") {
+      console.log(result, message);
       throw new Error(`Failed to download`);
     }
 
     const downloadedFiles: string[] = [];
-
-    console.log(result, status);
 
     if (result === undefined) {
       return [];
@@ -49,7 +50,8 @@ export async function downloadTwitterMedia(
           continue; // Skip if no image URL is found
         }
         const imgUrl = media.image as string;
-        const filename = `twitter_img_${Date.now()}_${i}.jpg`;
+        const extension = path.extname(imgUrl).split("?")[0];
+        const filename = `${result.author.username}_${result.id}_${i}.${extension}`;
         const filePath = path.join(outputDir, filename);
 
         // Use the downloadFile helper to save the image
@@ -96,4 +98,27 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
     writer.on("finish", resolve);
     writer.on("error", reject);
   });
+}
+
+export const isTwitterOrXLink = (url: string): boolean => {
+  try {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname.toLowerCase();
+    return (
+      hostname === "x.com" ||
+      hostname === "twitter.com" ||
+      hostname === "fixupx.com" ||
+      hostname === "fxtwitter.com"
+    );
+  } catch (error) {
+    // If the URL is invalid, return false
+    return false;
+  }
+};
+
+//This function converts the twitter URL to an x.com link
+function convertToTwitterUrl(url: string): string {
+  const parsedUrl = new URL(url);
+  parsedUrl.hostname = "twitter.com";
+  return parsedUrl.toString();
 }

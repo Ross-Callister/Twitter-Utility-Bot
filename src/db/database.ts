@@ -1,7 +1,12 @@
 import Database from "better-sqlite3";
 import path from "path";
 
-const db = new Database(path.join(__dirname, "../../data.db"));
+// Use the /app/data path when running in Docker, otherwise use relative path
+const dbPath = process.env.DOCKER
+  ? "/app/data/data.db"
+  : path.join(__dirname, "../../data/data.db");
+
+const db = new Database(dbPath);
 
 // Initialize database tables
 db.exec(`
