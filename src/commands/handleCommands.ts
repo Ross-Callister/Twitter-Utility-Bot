@@ -3,6 +3,7 @@ import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
 import { isChannelMonitored, addMonitoredChannel, removeMonitoredChannel, setTwitterCookie, getTwitterCookie } from "../db/database";
 import { config } from "../config";
 import { wait } from "../utilities/wait";
+import { sortImage } from "../processing/sorting";
 
 export const handleCommands = async (message: Message) => {
   const content = message.content.toLowerCase();
@@ -12,6 +13,11 @@ export const handleCommands = async (message: Message) => {
     const [command, ...args] = content.slice(1).split(" ");
 
     switch (command) {
+      case "imagetest":
+        await sortImage("./test_images/31906865_p0.jpg");
+        await message.reply("Image processing test completed. Check console for details.");
+
+        break;
       case "config":
         if (args[0] === "download") {
           const isMonitored = isChannelMonitored(message.channel.id);
