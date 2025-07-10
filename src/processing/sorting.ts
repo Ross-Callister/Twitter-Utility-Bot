@@ -1,7 +1,7 @@
 import { ChatBedrockConverse } from "@langchain/aws";
 import { ChatMessage } from "@langchain/core/messages";
 import { ChatPromptValue } from "@langchain/core/prompt_values";
-import { loadImageAsBase64 } from "./imageUtils";
+import { resizeImageAndGetBase64 } from "./imageUtils";
 
 const model = new ChatBedrockConverse({
   model: "us.meta.llama3-2-11b-instruct-v1:0",
@@ -13,7 +13,7 @@ export async function sortImage(imagePath: string): Promise<{ response: string }
     throw new Error("Invalid input text");
   }
 
-  const base64Image = await loadImageAsBase64(imagePath);
+  const base64Image = await resizeImageAndGetBase64(imagePath);
 
   const response = await model.invoke(
     new ChatPromptValue({
