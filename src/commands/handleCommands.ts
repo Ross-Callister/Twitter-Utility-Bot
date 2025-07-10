@@ -1,12 +1,6 @@
 import { Message } from "discord.js";
 import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
-import {
-  isChannelMonitored,
-  addMonitoredChannel,
-  removeMonitoredChannel,
-  setTwitterCookie,
-  getTwitterCookie,
-} from "../db/database";
+import { isChannelMonitored, addMonitoredChannel, removeMonitoredChannel, setTwitterCookie, getTwitterCookie } from "../db/database";
 import { config } from "../config";
 import { wait } from "../utilities/wait";
 
@@ -23,23 +17,17 @@ export const handleCommands = async (message: Message) => {
           const isMonitored = isChannelMonitored(message.channel.id);
           if (isMonitored) {
             removeMonitoredChannel(message.channel.id);
-            await message.reply(
-              "Channel will no longer be monitored for Twitter media downloads."
-            );
+            await message.reply("Channel will no longer be monitored for Twitter media downloads.");
           } else {
             addMonitoredChannel(message.channel.id, message.guild?.id || "DM");
-            await message.reply(
-              "Channel will now be monitored for Twitter media downloads."
-            );
+            await message.reply("Channel will now be monitored for Twitter media downloads.");
           }
         }
         break;
 
       case "cookie":
         if (message.author.id !== config.admin) {
-          await message.reply(
-            "Only administrators can set the Twitter cookie."
-          );
+          await message.reply("Only administrators can set the Twitter cookie.");
           return;
         }
         const cookie = args.join(" ");
@@ -55,15 +43,10 @@ export const handleCommands = async (message: Message) => {
   }
 
   // Handle Twitter links
-  if (
-    isChannelMonitored(message.channel.id) &&
-    isTwitterOrXLink(message.content)
-  ) {
+  if (isChannelMonitored(message.channel.id) && isTwitterOrXLink(message.content)) {
     const cookie = getTwitterCookie();
     if (!cookie) {
-      await message.reply(
-        "Twitter cookie not set. Please ask an administrator to set it using !cookie command."
-      );
+      await message.reply("Twitter cookie not set. Please ask an administrator to set it using !cookie command.");
       return;
     }
 

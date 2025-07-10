@@ -32,11 +32,14 @@ A Discord bot that automatically downloads media from Twitter/X posts in designa
 ## Docker Deployment
 
 ### Prerequisites
+
 - Docker and Docker Compose installed on your system
 - Your Discord bot token
 
 ### Setup and Run
+
 1. Create a `.env` file in the project root with your Discord token:
+
    ```
    DISCORD_TOKEN=your_discord_token_here
    ```
@@ -47,16 +50,20 @@ A Discord bot that automatically downloads media from Twitter/X posts in designa
    ```
 
 ### Data Persistence
+
 The bot uses two persistent volumes:
+
 - `./data`: Contains the SQLite database (`data.db`)
 - `./downloads`: Stores downloaded media files
 
 These directories are mounted as volumes in the container, ensuring that:
+
 - Your database persists between container restarts
 - Downloaded media remains accessible on the host machine
 - Configuration and monitored channels are preserved
 
 ### Maintenance
+
 - View logs: `docker-compose logs -f`
 - Restart bot: `docker-compose restart`
 - Stop bot: `docker-compose down`
@@ -71,6 +78,8 @@ These directories are mounted as volumes in the container, ensuring that:
   - The bot will react with a confirmation message
 
 ### Twitter Authentication
+
+Instructions for getting cookie: https://github.com/TobyG74/twitter-downloader
 
 - `!cookie <value>` - Sets the Twitter authentication cookie (required for accessing protected/sensitive content)
   - Only server administrators can use this command

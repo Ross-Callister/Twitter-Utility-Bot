@@ -10,11 +10,7 @@ import { Config } from "twitter-downloader/lib/types/config";
  * @param outputDir Directory to save the downloaded media (default: './downloads')
  * @returns Promise resolving to the paths of downloaded files
  */
-export async function downloadTwitterMedia(
-  initialUrl: string,
-  outputDir: string = "./downloads",
-  cookie: string
-): Promise<string[]> {
+export async function downloadTwitterMedia(initialUrl: string, outputDir: string = "./downloads", cookie: string): Promise<string[]> {
   const url = convertToTwitterUrl(initialUrl); // Convert to x.com link
 
   try {
@@ -24,8 +20,7 @@ export async function downloadTwitterMedia(
     }
 
     // Use the twitter-downloader library to get media information
-    const options: Config = {
-      authorization: "", // undefined == use default authorization
+    const options: any = {
       cookie: cookie, // to display sensitive / nsfw content (no default cookies)
     };
 
@@ -50,7 +45,7 @@ export async function downloadTwitterMedia(
           continue; // Skip if no image URL is found
         }
         const imgUrl = media.image as string;
-        const extension = path.extname(imgUrl).split("?")[0];
+        const extension = path.extname(imgUrl).split("?")[0].replace(".", ""); // Get the file extension without query parameters
         const filename = `${result.author.username}_${result.id}_${i}.${extension}`;
         const filePath = path.join(outputDir, filename);
 
@@ -69,6 +64,14 @@ export async function downloadTwitterMedia(
         console.log("Unsupported media type:", media.type);
       }
     }
+    //check that files actually have downloaded
+    downloadedFiles.forEach((file) => {
+      if (!fs.existsSync(file)) {
+        throw new Error(`File not downloaded: ${file}`);
+      } else {
+        console.log(`File downloaded successfully: ${file}`);
+      }
+    });
 
     return downloadedFiles;
   } catch (error) {
@@ -104,12 +107,7 @@ export const isTwitterOrXLink = (url: string): boolean => {
   try {
     const parsedUrl = new URL(url);
     const hostname = parsedUrl.hostname.toLowerCase();
-    return (
-      hostname === "x.com" ||
-      hostname === "twitter.com" ||
-      hostname === "fixupx.com" ||
-      hostname === "fxtwitter.com"
-    );
+    return hostname === "x.com" || hostname === "twitter.com" || hostname === "fixupx.com" || hostname === "fxtwitter.com";
   } catch (error) {
     // If the URL is invalid, return false
     return false;

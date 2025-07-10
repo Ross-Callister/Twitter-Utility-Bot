@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 
 # Create directories for persistence
-RUN mkdir -p /app/data /app/downloads
+# RUN mkdir -p /app/data /app/downloads
 
 # Build TypeScript
 RUN npm run build
