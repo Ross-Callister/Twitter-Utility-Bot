@@ -1,9 +1,9 @@
 import { Message } from "discord.js";
-import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
-import { isChannelMonitored, addMonitoredChannel, removeMonitoredChannel, setTwitterCookie, getTwitterCookie } from "../db/database";
 import { config } from "../config";
-import { wait } from "../utilities/wait";
+import { addMonitoredChannel, getTwitterCookie, isChannelMonitored, removeMonitoredChannel, setTwitterCookie } from "../db/database";
+import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
 import { sortImage } from "../processing/sorting";
+import { wait } from "../utilities/wait";
 
 export const handleCommands = async (message: Message) => {
   const content = message.content.toLowerCase();
@@ -14,8 +14,24 @@ export const handleCommands = async (message: Message) => {
 
     switch (command) {
       case "imagetest":
-        await sortImage("./test_images/31906865_p0.jpg");
-        await message.reply("Image processing test completed. Check console for details.");
+        //get all images in the test_images folder and process them
+        const fs = require("fs");
+        const path = require("path");
+        const imagesDir = path.join(__dirname, "../../test_images");
+        const images = fs.readdirSync(imagesDir).filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file)) as string[];
+
+        for (let i = 0; i < images.length; i++) {
+          const image = images[i];
+          const imagePath = `./test_images/${image}`;
+          console.log(`Processing image: ${imagePath}`);
+          try {
+            const result = await sortImage(imagePath);
+            console.log(`Image description: ${result.image_description}`);
+            console.log(`Image sorted into folder: ${result.folder}`);
+          } catch (error) {
+            console.error(`Error processing image ${image}:`, error);
+          }
+        }
 
         break;
       case "config":

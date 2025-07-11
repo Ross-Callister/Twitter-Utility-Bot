@@ -1,0 +1,5 @@
+[
+  { "foler": "cats", "description": "Images which contain cats" },
+  { "folder": "dogs", "description": "Images which contain dogs" },
+  { "folder": "birds", "description": "Images which contain birds" }
+]
