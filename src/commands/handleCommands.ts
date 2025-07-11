@@ -2,11 +2,16 @@ import { Message } from "discord.js";
 import { config } from "../config";
 import { addMonitoredChannel, getTwitterCookie, isChannelMonitored, removeMonitoredChannel, setTwitterCookie } from "../db/database";
 import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
-import { sortImage } from "../processing/sorting";
+import { describeImage, sortImage } from "../processing/sorting";
 import { wait } from "../utilities/wait";
+import fs from "fs";
+import path from "path";
 
 export const handleCommands = async (message: Message) => {
   const content = message.content.toLowerCase();
+
+  const imagesDir = path.join(__dirname, "../../test_images");
+  const images = fs.readdirSync(imagesDir).filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file)) as string[];
 
   // Handle commands
   if (content.startsWith("!")) {
@@ -15,10 +20,6 @@ export const handleCommands = async (message: Message) => {
     switch (command) {
       case "imagetest":
         //get all images in the test_images folder and process them
-        const fs = require("fs");
-        const path = require("path");
-        const imagesDir = path.join(__dirname, "../../test_images");
-        const images = fs.readdirSync(imagesDir).filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file)) as string[];
 
         for (let i = 0; i < images.length; i++) {
           const image = images[i];
@@ -45,8 +46,14 @@ export const handleCommands = async (message: Message) => {
           } catch (error) {
             console.error(`Error processing image ${image}:`, error);
           }
+          wait(5000); // Wait for 1 second before processing the next image
         }
 
+        break;
+      case "identify":
+        for (let i = 0; i < images.length; i++) {
+          describeImage(`./test_images/${images[i]}`);
+        }
         break;
       case "config":
         if (args[0] === "download") {

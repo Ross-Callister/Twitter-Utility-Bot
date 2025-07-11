@@ -1,5 +1,14 @@
 [
-  { "foler": "cats", "description": "Images which contain cats" },
-  { "folder": "dogs", "description": "Images which contadasdasin dogs" },
-  { "folder": "birds", "description": "Images which contain birds" }
+  {
+    "folder": "cats",
+    "description": "Images which contain cats"
+  },
+  {
+    "folder": "dogs",
+    "description": "Images which contain dogs"
+  },
+  {
+    "folder": "birds",
+    "description": "Images which contain birds"
+  }
 ]

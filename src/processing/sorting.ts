@@ -3,11 +3,21 @@ import { ChatMessage } from "@langchain/core/messages";
 import { ChatPromptValue } from "@langchain/core/prompt_values";
 import { resizeImageAndGetBase64 } from "./imageUtils";
 import sortDirectives from "../sort_directives.json";
+import { ChatOpenAI } from "@langchain/openai";
 
 const model = new ChatBedrockConverse({
   model: "us.meta.llama3-2-11b-instruct-v1:0",
   region: "us-west-2",
 });
+
+// export const model = new ChatOpenAI({
+//   model: "google/gemma-3-27b-it",
+//   apiKey: process.env.FEATHERLESS_API_KEY,
+//   configuration: {
+//     baseURL: "https://api.featherless.ai/v1",
+//   },
+//   timeout: 10_000,
+// });
 
 export async function describeImage(imagePath: string): Promise<{ response: string }> {
   if (!imagePath || typeof imagePath !== "string") {
