@@ -28,6 +28,20 @@ export const handleCommands = async (message: Message) => {
             const result = await sortImage(imagePath);
             console.log(`Image description: ${result.image_description}`);
             console.log(`Image sorted into folder: ${result.folder}`);
+
+            // Create the destination folder if it doesn't exist
+            const destinationDir = path.join(__dirname, "../../test_images", result.folder);
+            if (!fs.existsSync(destinationDir)) {
+              fs.mkdirSync(destinationDir, { recursive: true });
+              console.log(`Created directory: ${destinationDir}`);
+            }
+
+            // Move the file to the appropriate subfolder
+            const sourcePath = path.join(imagesDir, image);
+            const destinationPath = path.join(destinationDir, image);
+
+            fs.renameSync(sourcePath, destinationPath);
+            console.log(`Moved ${image} to ${result.folder}/`);
           } catch (error) {
             console.error(`Error processing image ${image}:`, error);
           }
