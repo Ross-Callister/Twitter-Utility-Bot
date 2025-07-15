@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import axios from "axios";
 import { Config } from "twitter-downloader/lib/types/config";
+import { sortImage } from "../processing/sorting";
 
 /**
  * Downloads media from a Twitter link
@@ -73,7 +74,44 @@ export async function downloadTwitterMedia(initialUrl: string, outputDir: string
       }
     });
 
-    return downloadedFiles;
+    // Sort downloaded images into appropriate subfolders
+    const sortedFiles: string[] = [];
+    for (const filePath of downloadedFiles) {
+      try {
+        // Only sort image files (skip videos)
+        const extension = path.extname(filePath).toLowerCase();
+        if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(extension)) {
+          console.log(`Sorting image: ${filePath}`);
+          const result = await sortImage(filePath);
+          console.log(`Image description: ${result.image_description}`);
+          console.log(`Image sorted into folder: ${result.folder}`);
+
+          // Create the destination folder if it doesn't exist
+          const destinationDir = path.join(outputDir, result.folder);
+          if (!fs.existsSync(destinationDir)) {
+            fs.mkdirSync(destinationDir, { recursive: true });
+            console.log(`Created directory: ${destinationDir}`);
+          }
+
+          // Move the file to the appropriate subfolder
+          const fileName = path.basename(filePath);
+          const destinationPath = path.join(destinationDir, fileName);
+
+          fs.renameSync(filePath, destinationPath);
+          console.log(`Moved ${fileName} to ${result.folder}/`);
+          sortedFiles.push(destinationPath);
+        } else {
+          // Keep non-image files in their original location
+          sortedFiles.push(filePath);
+        }
+      } catch (error) {
+        console.error(`Error sorting file ${filePath}:`, error);
+        // If sorting fails, keep the file in its original location
+        sortedFiles.push(filePath);
+      }
+    }
+
+    return sortedFiles;
   } catch (error) {
     console.error("Error downloading Twitter media:", error);
     throw error;

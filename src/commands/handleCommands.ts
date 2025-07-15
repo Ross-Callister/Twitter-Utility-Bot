@@ -46,7 +46,7 @@ export const handleCommands = async (message: Message) => {
           } catch (error) {
             console.error(`Error processing image ${image}:`, error);
           }
-          wait(5000); // Wait for 1 second before processing the next image
+          await wait(5000);
         }
 
         break;
@@ -95,7 +95,7 @@ export const handleCommands = async (message: Message) => {
 
     try {
       await downloadTwitterMedia(message.content, "./downloads", cookie);
-      message.react("👍");
+      await message.react("👍");
       await wait(5000); // Wait for 5 seconds before deleting the message
       await message.delete();
     } catch (error) {

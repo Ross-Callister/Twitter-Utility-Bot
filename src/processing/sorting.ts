@@ -16,6 +16,7 @@ const model = new ChatBedrockConverse({
 //   configuration: {
 //     baseURL: "https://api.featherless.ai/v1",
 //   },
+//   temperature: 0.2,
 //   timeout: 10_000,
 // });
 
@@ -54,7 +55,7 @@ export async function describeImage(imagePath: string): Promise<{ response: stri
 }
 
 type ImageSortDirective = { folder: string; description: string };
-export type ImageSortResponse = { image_description: string; folder: string };
+export type ImageSortResponse = { image_description: string; folder: string; explicit: boolean; reasoning: string };
 
 export async function sortImage(imagePath: string): Promise<ImageSortResponse> {
   if (!imagePath || typeof imagePath !== "string") {
@@ -75,8 +76,10 @@ Respond with the folder that best matches the image content. If no match is foun
 The format of your response should be the following format:
 \`\`\`
 {
+  "explicit": boolean, // true if the image is explicit, false otherwise
   "image_description": "A detailed description of the image content",
-  "folder": "the folder name where the image should be sorted",
+  "reasoning": "A brief explanation of why the category/folder was chosen",
+  "folder": "the folder name where the image should be sorted, must only be one of the folders specified in the directives, or 'other' if no match is found",
 }
 \`\`\`
 
@@ -110,7 +113,12 @@ Example response:
     })
   );
 
-  const sortResponse = JSON.parse(response.content as string) as ImageSortResponse; // Ensure the response is valid JSON
+  const content = response.content as string;
+
+  const trimmedContent = content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1);
+
+  console.log("Response from model:", trimmedContent);
+  const sortResponse = JSON.parse(trimmedContent as string) as ImageSortResponse; // Ensure the response is valid JSON
 
   return sortResponse;
 }
