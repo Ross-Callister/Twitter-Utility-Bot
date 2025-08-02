@@ -54,7 +54,7 @@ export async function describeImage(imagePath: string): Promise<{ response: stri
   return { response: response.content as string };
 }
 
-type ImageSortDirective = { folder: string; description: string };
+type ImageSortDirectives = { system_prompt: string; directives: { folder: string; description: string }[] };
 export type ImageSortResponse = { image_description: string; folder: string; explicit: boolean; reasoning: string };
 
 export async function sortImage(imagePath: string): Promise<ImageSortResponse> {
@@ -63,13 +63,15 @@ export async function sortImage(imagePath: string): Promise<ImageSortResponse> {
   }
 
   const base64Image = await resizeImageAndGetBase64(imagePath);
-  const typedSortDirectives: ImageSortDirective[] = sortDirectives as ImageSortDirective[];
+  const typedSortDirectives = sortDirectives as ImageSortDirectives;
 
   const systemPrompt = `
 You are an image sorting assistant. Based on the provided directives, classify the image into one of the specified categories. If the image does not fit any category, return "other".
 
+Overall directive: ${typedSortDirectives.system_prompt}
+
 Directives:
-${typedSortDirectives.map((directive) => `- Folder: ${directive.folder}, Description: ${directive.description}`)}
+${typedSortDirectives.directives.map((directive) => `- Folder: ${directive.folder}, Description: ${directive.description}`)}
 
 Respond with the folder that best matches the image content. If no match is found, respond with "other".
 

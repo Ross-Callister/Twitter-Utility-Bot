@@ -1,14 +1,17 @@
-[
-  {
-    "folder": "cats",
-    "description": "Images which contain cats"
-  },
-  {
-    "folder": "dogs",
-    "description": "Images which contain dogs"
-  },
-  {
-    "folder": "birds",
-    "description": "Images which contain birds"
-  }
-]
+{
+  "system_prompt": "You are an expert biologist who can recognise an animal with speed and clarity. We are sorting animals into categories for a rehabilitation charity that specialises in specific animals. The animals we are seeing should fit into one of the given categories, otherwise they should be placed in the 'other' folder",
+  "directives": [
+    {
+      "folder": "cats",
+      "description": "Images which contain cats"
+    },
+    {
+      "folder": "dogs",
+      "description": "Images which contain dogs"
+    },
+    {
+      "folder": "birds",
+      "description": "Images which contain birds"
+    }
+  ]
+}

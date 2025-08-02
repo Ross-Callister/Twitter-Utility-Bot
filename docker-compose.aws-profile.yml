@@ -1,0 +1,12 @@
+services:
+  bot:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./downloads:/app/downloads
+      # Mount AWS credentials from host (Windows path)
+      - ${USERPROFILE}/.aws:/root/.aws:ro
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+    restart: unless-stopped
