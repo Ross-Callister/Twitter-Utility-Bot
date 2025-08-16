@@ -169,10 +169,11 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
  * @returns True if the URL is an e621 link
  */
 export const isE621Link = (url: string): boolean => {
+  console.log("Checking if URL is an e621 link:", url);
   try {
     const parsedUrl = new URL(url);
     const hostname = parsedUrl.hostname.toLowerCase();
-    return hostname === "e621.net" && parsedUrl.pathname.includes("/posts/");
+    return hostname === "e621.net" && (parsedUrl.pathname.includes("/posts/") || parsedUrl.pathname.includes("/post/show/"));
   } catch (error) {
     // If the URL is invalid, return false
     return false;
@@ -188,7 +189,14 @@ function extractPostId(url: string): string | null {
   try {
     const parsedUrl = new URL(url);
     const pathMatch = parsedUrl.pathname.match(/\/posts\/(\d+)/);
-    return pathMatch ? pathMatch[1] : null;
+    const altPathMatch = parsedUrl.pathname.match(/\/post\/show\/(\d+)/);
+    if (pathMatch) {
+      return pathMatch[1];
+    } else if (altPathMatch) {
+      return altPathMatch[1];
+    }
+
+    return null;
   } catch (error) {
     return null;
   }

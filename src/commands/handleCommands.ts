@@ -3,6 +3,7 @@ import { config } from "../config";
 import { addMonitoredChannel, getTwitterCookie, isChannelMonitored, removeMonitoredChannel, setTwitterCookie } from "../db/database";
 import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
 import { downloadE621Media, isE621Link } from "../downloaders/e621";
+import { downloadFromSauceNAO, isDirectImageUrl } from "../downloaders/saucenao";
 import { describeImage, sortImage } from "../processing/sorting";
 import { wait } from "../utilities/wait";
 import fs from "fs";
@@ -82,6 +83,41 @@ export const handleCommands = async (message: Message) => {
           await message.delete();
         }
         break;
+
+      case "sauce":
+        if (!isChannelMonitored(message.channel.id)) {
+          await message.reply("This channel is not monitored for downloads. Use `!config download` to enable it.");
+          return;
+        }
+
+        const imageUrl = args[0];
+        if (!imageUrl) {
+          await message.reply("Please provide an image URL. Usage: `!sauce <image_url>`");
+          return;
+        }
+
+        if (!isDirectImageUrl(imageUrl)) {
+          await message.reply("Please provide a direct image URL (must end with .jpg, .png, .gif, etc.)");
+          return;
+        }
+
+        const twitterCookie = getTwitterCookie();
+
+        try {
+          await message.react("🔍");
+          await downloadFromSauceNAO(imageUrl, "./downloads", twitterCookie || undefined);
+          await message.reactions.removeAll();
+          await message.react("👍");
+          await wait(5000); // Wait for 5 seconds before deleting the message
+          await message.delete();
+        } catch (error) {
+          console.error("Error with sauce command:", error);
+          await message.reactions.removeAll();
+          await message.react("❌");
+          const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+          await message.reply(`SauceNAO search failed: ${errorMessage}`);
+        }
+        break;
     }
     return;
   }
@@ -115,6 +151,28 @@ export const handleCommands = async (message: Message) => {
     } catch (error) {
       console.error("Error downloading e621 media:", error);
       await message.react("❌");
+    }
+  }
+
+  // Handle direct image URLs with SauceNAO
+  if (isChannelMonitored(message.channel.id) && isDirectImageUrl(message.content)) {
+    const cookie = getTwitterCookie();
+
+    try {
+      await message.react("🔍"); // React with magnifying glass to show we're searching
+      await downloadFromSauceNAO(message.content, "./downloads", cookie || undefined);
+      await message.reactions.removeAll(); // Remove the search reaction
+      await message.react("👍");
+      await wait(5000); // Wait for 5 seconds before deleting the message
+      await message.delete();
+    } catch (error) {
+      console.error("Error downloading via SauceNAO:", error);
+      await message.reactions.removeAll();
+      await message.react("❌");
+      // Optionally send a brief error message
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      const errorMsg = await message.reply(`SauceNAO search failed: ${errorMessage}`);
+      setTimeout(() => errorMsg.delete().catch(() => {}), 10000); // Delete error message after 10 seconds
     }
   }
 };
