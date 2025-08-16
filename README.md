@@ -1,19 +1,19 @@
 # Discord Utility Bot
 
-A Discord bot that automatically downloads media from Twitter/X posts, e621 posts, and can reverse search images using SauceNAO to find their original sources.
+A Discord bot that automatically downloads media from Twitter/X posts, e621 posts, Reddit posts/galleries, and can reverse search images using SauceNAO to find their original sources.
 
 ## Features
 
 - Automatically downloads images and videos from Twitter/X links
 - Downloads images from e621 links
+- Downloads images from Reddit posts and galleries with intelligent source detection
 - Reverse searches direct image URLs using SauceNAO to find original sources
-- Automatically routes found sources to appropriate downloaders (Twitter or e621)
+- Automatically routes found sources to appropriate downloaders (Twitter, e621, or Reddit)
 - Configurable monitoring per channel
 - Persistent settings using SQLite database
 - Support for protected/sensitive content with cookie authentication
 - Automatic image sorting using AI-powered classification
-
-## Setup
+- Rate-limited gallery downloads (40-second delays between images)## Setup
 
 1. Install dependencies:
 
@@ -113,8 +113,15 @@ Instructions for getting Twitter cookie: https://github.com/TobyG74/twitter-down
 ### Manual Downloads
 
 - `!sauce <image_url>` - Manually reverse search an image using SauceNAO and download from the original source
+
   - Requires a direct image URL (ending in .jpg, .png, .gif, etc.)
   - Will automatically route to Twitter or e621 downloaders based on the found source
+  - Only works in monitored channels
+
+- `!reddit <reddit_url>` - Manually download media from a Reddit post or gallery
+  - Supports both single image posts and multi-image galleries
+  - For galleries, downloads each image with 40-second delays to respect rate limits
+  - Uses SauceNAO to find original sources for each image
   - Only works in monitored channels
 
 ## How it Works
@@ -124,9 +131,11 @@ Instructions for getting Twitter cookie: https://github.com/TobyG74/twitter-down
 3. When a supported link is posted in a monitored channel:
    - **Twitter/X links**: The bot reacts with 👍, downloads media, and automatically sorts images
    - **e621 links**: The bot downloads the image and sorts it automatically
+   - **Reddit links**: The bot reacts with 📱, processes posts/galleries, uses SauceNAO to find sources, and downloads via appropriate methods
    - **Direct image URLs**: The bot uses SauceNAO to reverse search the image, finds the original source, and downloads using the appropriate method
-4. All downloaded images are automatically sorted into categorized folders using AI-powered classification
-5. The bot reports any errors if downloads fail
+4. For Reddit galleries, each image is processed individually with 40-second delays to respect API rate limits
+5. All downloaded images are automatically sorted into categorized folders using AI-powered classification
+6. The bot reports any errors if downloads fail
 
 ## File Structure
 

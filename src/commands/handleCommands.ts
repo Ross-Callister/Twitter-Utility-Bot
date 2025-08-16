@@ -4,6 +4,7 @@ import { addMonitoredChannel, getTwitterCookie, isChannelMonitored, removeMonito
 import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
 import { downloadE621Media, isE621Link } from "../downloaders/e621";
 import { downloadFromSauceNAO, isDirectImageUrl } from "../downloaders/saucenao";
+import { downloadRedditMedia, isRedditLink } from "../downloaders/reddit";
 import { describeImage, sortImage } from "../processing/sorting";
 import { wait } from "../utilities/wait";
 import fs from "fs";
@@ -118,6 +119,40 @@ export const handleCommands = async (message: Message) => {
           await message.reply(`SauceNAO search failed: ${errorMessage}`);
         }
         break;
+
+      case "reddit":
+        if (!isChannelMonitored(message.channel.id)) {
+          await message.reply("This channel is not monitored for downloads. Use `!config download` to enable it.");
+          return;
+        }
+
+        const redditUrl = args[0];
+        if (!redditUrl) {
+          await message.reply("Please provide a Reddit URL. Usage: `!reddit <reddit_url>`");
+          return;
+        }
+
+        if (!isRedditLink(redditUrl)) {
+          await message.reply("Please provide a valid Reddit URL (e.g., reddit.com/r/subreddit/comments/...)");
+          return;
+        }
+
+        const redditTwitterCookie = getTwitterCookie();
+
+        try {
+          await message.react("📱");
+          await downloadRedditMedia(redditUrl, "./downloads", redditTwitterCookie || undefined);
+          await message.reactions.removeAll();
+          await message.react("👍");
+          await message.reply("Successfully downloaded Reddit media!");
+        } catch (error) {
+          console.error("Error with reddit command:", error);
+          await message.reactions.removeAll();
+          await message.react("❌");
+          const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+          await message.reply(`Reddit download failed: ${errorMessage}`);
+        }
+        break;
     }
     return;
   }
@@ -172,6 +207,28 @@ export const handleCommands = async (message: Message) => {
       // Optionally send a brief error message
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
       const errorMsg = await message.reply(`SauceNAO search failed: ${errorMessage}`);
+      setTimeout(() => errorMsg.delete().catch(() => {}), 10000); // Delete error message after 10 seconds
+    }
+  }
+
+  // Handle Reddit links
+  if (isChannelMonitored(message.channel.id) && isRedditLink(message.content)) {
+    const cookie = getTwitterCookie();
+
+    try {
+      await message.react("📱"); // React with mobile phone to show we're processing Reddit
+      await downloadRedditMedia(message.content, "./downloads", cookie || undefined);
+      await message.reactions.removeAll(); // Remove the processing reaction
+      await message.react("👍");
+      await wait(5000); // Wait for 5 seconds before deleting the message
+      await message.delete();
+    } catch (error) {
+      console.error("Error downloading Reddit media:", error);
+      await message.reactions.removeAll();
+      await message.react("❌");
+      // Send error message that auto-deletes
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      const errorMsg = await message.reply(`Reddit download failed: ${errorMessage}`);
       setTimeout(() => errorMsg.delete().catch(() => {}), 10000); // Delete error message after 10 seconds
     }
   }
