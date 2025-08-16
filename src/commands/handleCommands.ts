@@ -2,6 +2,7 @@ import { Message } from "discord.js";
 import { config } from "../config";
 import { addMonitoredChannel, getTwitterCookie, isChannelMonitored, removeMonitoredChannel, setTwitterCookie } from "../db/database";
 import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
+import { downloadE621Media, isE621Link } from "../downloaders/e621";
 import { describeImage, sortImage } from "../processing/sorting";
 import { wait } from "../utilities/wait";
 import fs from "fs";
@@ -100,6 +101,19 @@ export const handleCommands = async (message: Message) => {
       await message.delete();
     } catch (error) {
       console.error("Error downloading media:", error);
+      await message.react("❌");
+    }
+  }
+
+  // Handle e621 links
+  if (isChannelMonitored(message.channel.id) && isE621Link(message.content)) {
+    try {
+      await downloadE621Media(message.content, "./downloads");
+      await message.react("👍");
+      await wait(5000); // Wait for 5 seconds before deleting the message
+      await message.delete();
+    } catch (error) {
+      console.error("Error downloading e621 media:", error);
       await message.react("❌");
     }
   }

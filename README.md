@@ -14,7 +14,7 @@ A Discord bot that automatically downloads media from Twitter/X posts in designa
 1. Install dependencies:
 
    ```bash
-   npm install
+   yarn install
    ```
 
 2. Create a `.env` file in the root directory with your Discord bot token:
@@ -25,8 +25,8 @@ A Discord bot that automatically downloads media from Twitter/X posts in designa
 
 3. Run the bot:
    ```bash
-   npm run dev    # For development with auto-reload
-   npm start      # For production
+   yarn dev    # For development with auto-reload
+   yarn start  # For production
    ```
 
 ## Docker Deployment
