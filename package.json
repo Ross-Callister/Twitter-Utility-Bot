@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
+    "twitter": "node src/test.js",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "docker:build": "docker-compose build",
@@ -21,6 +22,7 @@
     "@langchain/aws": "^0.1.11",
     "@langchain/core": "^0.3.62",
     "@langchain/openai": "^0.5.18",
+    "@lmna22/aio-downloader": "^2.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "axios": "^1.8.4",
     "better-sqlite3": "^11.9.1",

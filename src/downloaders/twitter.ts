@@ -25,11 +25,15 @@ export async function downloadTwitterMedia(initialUrl: string, outputDir: string
       cookie: cookie, // to display sensitive / nsfw content (no default cookies)
     };
 
+    if (process.env.TWITTER_AUTHORIZATION) {
+      options.authorization = process.env.TWITTER_AUTHORIZATION; // Twitter API Bearer Token
+    }
+
     const { result, status, message } = await TwitterDL(url, options);
 
     if (status === "error") {
-      console.log(result, message);
-      throw new Error(`Failed to download`);
+      console.log(result, status, message);
+      throw new Error(`Failed to download: ${message}`);
     }
 
     const downloadedFiles: string[] = [];

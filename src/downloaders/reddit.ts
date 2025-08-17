@@ -1,8 +1,9 @@
 import axios from "axios";
 import * as fs from "fs";
-import * as path from "path";
-import { downloadFromSauceNAO, isDirectImageUrl } from "./saucenao";
 import { wait } from "../utilities/wait";
+import { downloadFromSauceNAO, isDirectImageUrl } from "./saucenao";
+
+const REDDIT_USERNAME = process.env.REDDIT_USERNAME;
 
 interface RedditMediaItem {
   status: string;
@@ -74,7 +75,7 @@ export async function downloadRedditMedia(
     }
 
     // Convert Reddit URL to API URL
-    const apiUrl = convertToApiUrl(initialUrl);
+    const apiUrl = await convertToApiUrl(initialUrl);
     if (!apiUrl) {
       throw new Error("Invalid Reddit URL - could not convert to API URL");
     }
@@ -84,7 +85,7 @@ export async function downloadRedditMedia(
     // Fetch Reddit data
     const response = await axios.get<RedditResponse[]>(apiUrl, {
       headers: {
-        "User-Agent": "Discord-Utility-Bot/1.0 (by YourUsername)",
+        "User-Agent": `Discord-Utility-Bot/1.0 (by ${REDDIT_USERNAME})`,
       },
     });
 
@@ -205,7 +206,7 @@ function getHighestQualityImageUrl(mediaData: RedditMediaItem): string | null {
  * @param url The Reddit URL to convert
  * @returns The API URL or null if conversion fails
  */
-function convertToApiUrl(url: string): string | null {
+async function convertToApiUrl(url: string): Promise<string | null> {
   try {
     const parsedUrl = new URL(url);
 
@@ -215,14 +216,40 @@ function convertToApiUrl(url: string): string | null {
       return null;
     }
 
-    // Convert to api.reddit.com and add .json extension if not present
     let apiPath = parsedUrl.pathname;
+
+    // Handle share links (e.g., /r/subreddit/s/shareId)
+    if (apiPath.includes("/s/")) {
+      console.log("Detected Reddit share link, resolving to actual post...");
+
+      // Follow the redirect to get the actual post URL
+      const response = await axios.get(url, {
+        maxRedirects: 5,
+        headers: {
+          "User-Agent": `Discord-Utility-Bot/1.0 (by ${REDDIT_USERNAME})`,
+        },
+      });
+
+      // Extract the actual post URL from the redirect
+      const finalUrl = response.request.res.responseUrl || response.config.url;
+      if (finalUrl && finalUrl !== url) {
+        console.log(`Share link resolved to: ${finalUrl}`);
+        const finalParsedUrl = new URL(finalUrl);
+        apiPath = finalParsedUrl.pathname;
+      } else {
+        console.error("Failed to resolve share link to actual post URL");
+        return null;
+      }
+    }
+
+    // Convert to api.reddit.com and add .json extension if not present
     if (!apiPath.endsWith(".json")) {
       apiPath = apiPath.replace(/\/$/, "") + ".json";
     }
 
     return `https://api.reddit.com${apiPath}${parsedUrl.search}?raw_json=1`;
   } catch (error) {
+    console.error("Error converting Reddit URL:", error);
     return null;
   }
 }
@@ -238,7 +265,10 @@ export const isRedditLink = (url: string): boolean => {
     const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, "");
     return (
       hostname === "reddit.com" &&
-      (parsedUrl.pathname.includes("/comments/") || parsedUrl.pathname.includes("/gallery/") || parsedUrl.pathname.includes("/r/"))
+      (parsedUrl.pathname.includes("/comments/") ||
+        parsedUrl.pathname.includes("/gallery/") ||
+        parsedUrl.pathname.includes("/s/") || // Add support for share links
+        parsedUrl.pathname.includes("/r/"))
     );
   } catch (error) {
     return false;
@@ -258,14 +288,14 @@ export async function getRedditPostInfo(url: string): Promise<{
   imageCount: number;
   isNSFW: boolean;
 }> {
-  const apiUrl = convertToApiUrl(url);
+  const apiUrl = await convertToApiUrl(url);
   if (!apiUrl) {
     throw new Error("Invalid Reddit URL");
   }
 
   const response = await axios.get<RedditResponse[]>(apiUrl, {
     headers: {
-      "User-Agent": "Discord-Utility-Bot/1.0 (by YourUsername)",
+      "User-Agent": `Discord-Utility-Bot/1.0 (by ${REDDIT_USERNAME})`,
     },
   });
 
