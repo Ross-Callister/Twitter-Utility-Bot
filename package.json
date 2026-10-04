@@ -19,9 +19,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@langchain/aws": "^0.1.11",
-    "@langchain/core": "^0.3.62",
-    "@langchain/openai": "^0.5.18",
     "@lmna22/aio-downloader": "^2.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "axios": "^1.8.4",
@@ -29,13 +26,11 @@
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.7",
     "puppeteer": "^24.6.0",
-    "sharp": "^0.34.3",
     "ts-node": "^10.9.2",
     "twitter-downloader": "^1.1.8"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "@types/sharp": "^0.32.0",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"

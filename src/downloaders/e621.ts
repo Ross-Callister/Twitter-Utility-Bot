@@ -1,7 +1,6 @@
 import axios from "axios";
 import * as fs from "fs";
 import * as path from "path";
-import { sortImage } from "../processing/sorting";
 
 const USERNAME = process.env.E621_USERNAME;
 const API_KEY = process.env.E621_API_KEY;
@@ -84,8 +83,6 @@ export async function downloadE621Media(initialUrl: string, outputDir: string = 
     // Download the file
     await downloadFile(post.file.url, filePath);
 
-    const downloadedFiles: string[] = [filePath];
-
     // Check that the file actually downloaded
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not downloaded: ${filePath}`);
@@ -93,44 +90,7 @@ export async function downloadE621Media(initialUrl: string, outputDir: string = 
       console.log(`File downloaded successfully: ${filePath}`);
     }
 
-    // Sort downloaded images into appropriate subfolders
-    const sortedFiles: string[] = [];
-    for (const downloadedFilePath of downloadedFiles) {
-      try {
-        // Only sort image files (skip videos and other formats)
-        const extension = path.extname(downloadedFilePath).toLowerCase();
-        if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(extension)) {
-          console.log(`Sorting image: ${downloadedFilePath}`);
-          const result = await sortImage(downloadedFilePath);
-          console.log(`Image description: ${result.image_description}`);
-          console.log(`Image sorted into folder: ${result.folder}`);
-
-          // Create the destination folder if it doesn't exist
-          const destinationDir = path.join(outputDir, result.folder);
-          if (!fs.existsSync(destinationDir)) {
-            fs.mkdirSync(destinationDir, { recursive: true });
-            console.log(`Created directory: ${destinationDir}`);
-          }
-
-          // Move the file to the appropriate subfolder
-          const fileName = path.basename(downloadedFilePath);
-          const destinationPath = path.join(destinationDir, fileName);
-
-          fs.renameSync(downloadedFilePath, destinationPath);
-          console.log(`Moved ${fileName} to ${result.folder}/`);
-          sortedFiles.push(destinationPath);
-        } else {
-          // Keep non-image files in their original location
-          sortedFiles.push(downloadedFilePath);
-        }
-      } catch (error) {
-        console.error(`Error sorting file ${downloadedFilePath}:`, error);
-        // If sorting fails, keep the file in its original location
-        sortedFiles.push(downloadedFilePath);
-      }
-    }
-
-    return sortedFiles;
+    return [filePath];
   } catch (error) {
     console.error("Error downloading e621 media:", error);
     throw error;

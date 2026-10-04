@@ -1,65 +1,61 @@
 import { Message } from "discord.js";
 import { config } from "../config";
-import { addMonitoredChannel, getTwitterCookie, isChannelMonitored, removeMonitoredChannel, setTwitterCookie } from "../db/database";
+import {
+  addMonitoredChannel,
+  getSortFolders,
+  getTwitterCookie,
+  isChannelMonitored,
+  removeMonitoredChannel,
+  setSortFolders,
+  setTwitterCookie,
+} from "../db/database";
 import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
 import { downloadE621Media, isE621Link } from "../downloaders/e621";
 import { downloadFromSauceNAO, isDirectImageUrl } from "../downloaders/saucenao";
 import { downloadRedditMedia, isRedditLink } from "../downloaders/reddit";
-import { describeImage, sortImage } from "../processing/sorting";
-import { wait } from "../utilities/wait";
-import fs from "fs";
-import path from "path";
+import { MAX_SORT_FOLDERS, postSortPrompt } from "../processing/manualSort";
+
+const DOWNLOADS_DIR = "./downloads";
+
+/**
+ * Runs a download while showing a progress reaction, then posts a sort prompt
+ * for the downloaded files. On failure, reacts with ❌ and posts a short-lived error.
+ */
+const downloadAndPrompt = async (message: Message, progressEmoji: string, label: string, download: () => Promise<string[]>) => {
+  const progress = await message.react(progressEmoji);
+  try {
+    const files = await download();
+    if (files.length === 0) {
+      throw new Error("No files were downloaded");
+    }
+    await progress.users.remove(message.client.user.id);
+    await postSortPrompt(message, files);
+  } catch (error) {
+    console.error(`Error downloading ${label} media:`, error);
+    await progress.users.remove(message.client.user.id).catch(() => {});
+    await message.react("❌");
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMsg = await message.reply(`${label} download failed: ${errorMessage}`);
+    setTimeout(() => errorMsg.delete().catch(() => {}), 10000); // Delete error message after 10 seconds
+  }
+};
 
 export const handleCommands = async (message: Message) => {
-  const content = message.content.toLowerCase();
+  if (message.author.bot) {
+    return;
+  }
 
-  const imagesDir = path.join(__dirname, "../../test_images");
-  const images = fs.readdirSync(imagesDir).filter((file: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(file)) as string[];
+  const content = message.content.trim();
 
   // Handle commands
   if (content.startsWith("!")) {
-    const [command, ...args] = content.slice(1).split(" ");
+    // Only the command name is lowercased; arguments such as URLs are case-sensitive
+    const [rawCommand, ...args] = content.slice(1).split(/\s+/);
+    const command = rawCommand.toLowerCase();
 
     switch (command) {
-      case "imagetest":
-        //get all images in the test_images folder and process them
-
-        for (let i = 0; i < images.length; i++) {
-          const image = images[i];
-          const imagePath = `./test_images/${image}`;
-          console.log(`Processing image: ${imagePath}`);
-          try {
-            const result = await sortImage(imagePath);
-            console.log(`Image description: ${result.image_description}`);
-            console.log(`Image sorted into folder: ${result.folder}`);
-
-            // Create the destination folder if it doesn't exist
-            const destinationDir = path.join(__dirname, "../../test_images", result.folder);
-            if (!fs.existsSync(destinationDir)) {
-              fs.mkdirSync(destinationDir, { recursive: true });
-              console.log(`Created directory: ${destinationDir}`);
-            }
-
-            // Move the file to the appropriate subfolder
-            const sourcePath = path.join(imagesDir, image);
-            const destinationPath = path.join(destinationDir, image);
-
-            fs.renameSync(sourcePath, destinationPath);
-            console.log(`Moved ${image} to ${result.folder}/`);
-          } catch (error) {
-            console.error(`Error processing image ${image}:`, error);
-          }
-          await wait(5000);
-        }
-
-        break;
-      case "identify":
-        for (let i = 0; i < images.length; i++) {
-          describeImage(`./test_images/${images[i]}`);
-        }
-        break;
       case "config":
-        if (args[0] === "download") {
+        if (args[0]?.toLowerCase() === "download") {
           const isMonitored = isChannelMonitored(message.channel.id);
           if (isMonitored) {
             removeMonitoredChannel(message.channel.id);
@@ -85,6 +81,10 @@ export const handleCommands = async (message: Message) => {
         }
         break;
 
+      case "folders":
+        await handleFoldersCommand(message, args);
+        break;
+
       case "sauce":
         if (!isChannelMonitored(message.channel.id)) {
           await message.reply("This channel is not monitored for downloads. Use `!config download` to enable it.");
@@ -102,22 +102,7 @@ export const handleCommands = async (message: Message) => {
           return;
         }
 
-        const twitterCookie = getTwitterCookie();
-
-        try {
-          await message.react("🔍");
-          await downloadFromSauceNAO(imageUrl, "./downloads", twitterCookie || undefined);
-          await message.reactions.removeAll();
-          await message.react("👍");
-          await wait(5000); // Wait for 5 seconds before deleting the message
-          await message.delete();
-        } catch (error) {
-          console.error("Error with sauce command:", error);
-          await message.reactions.removeAll();
-          await message.react("❌");
-          const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-          await message.reply(`SauceNAO search failed: ${errorMessage}`);
-        }
+        await downloadAndPrompt(message, "🔍", "SauceNAO", () => downloadFromSauceNAO(imageUrl, DOWNLOADS_DIR, getTwitterCookie() || undefined));
         break;
 
       case "reddit":
@@ -137,99 +122,92 @@ export const handleCommands = async (message: Message) => {
           return;
         }
 
-        const redditTwitterCookie = getTwitterCookie();
-
-        try {
-          await message.react("📱");
-          await downloadRedditMedia(redditUrl, "./downloads", redditTwitterCookie || undefined);
-          await message.reactions.removeAll();
-          await message.react("👍");
-          await message.reply("Successfully downloaded Reddit media!");
-        } catch (error) {
-          console.error("Error with reddit command:", error);
-          await message.reactions.removeAll();
-          await message.react("❌");
-          const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-          await message.reply(`Reddit download failed: ${errorMessage}`);
-        }
+        await downloadAndPrompt(message, "📱", "Reddit", () => downloadRedditMedia(redditUrl, DOWNLOADS_DIR, getTwitterCookie() || undefined));
         break;
     }
     return;
   }
 
+  if (!isChannelMonitored(message.channel.id)) {
+    return;
+  }
+
   // Handle Twitter links
-  if (isChannelMonitored(message.channel.id) && isTwitterOrXLink(message.content)) {
+  if (isTwitterOrXLink(content)) {
     const cookie = getTwitterCookie();
     if (!cookie) {
       await message.reply("Twitter cookie not set. Please ask an administrator to set it using !cookie command.");
       return;
     }
 
-    try {
-      await downloadTwitterMedia(message.content, "./downloads", cookie);
-      await message.react("👍");
-      await wait(5000); // Wait for 5 seconds before deleting the message
-      await message.delete();
-    } catch (error) {
-      console.error("Error downloading media:", error);
-      await message.react("❌");
-    }
+    await downloadAndPrompt(message, "⏳", "Twitter", () => downloadTwitterMedia(content, DOWNLOADS_DIR, cookie));
   }
 
   // Handle e621 links
-  if (isChannelMonitored(message.channel.id) && isE621Link(message.content)) {
-    try {
-      await downloadE621Media(message.content, "./downloads");
-      await message.react("👍");
-      await wait(5000); // Wait for 5 seconds before deleting the message
-      await message.delete();
-    } catch (error) {
-      console.error("Error downloading e621 media:", error);
-      await message.react("❌");
-    }
+  if (isE621Link(content)) {
+    await downloadAndPrompt(message, "⏳", "e621", () => downloadE621Media(content, DOWNLOADS_DIR));
   }
 
   // Handle direct image URLs with SauceNAO
-  if (isChannelMonitored(message.channel.id) && isDirectImageUrl(message.content)) {
-    const cookie = getTwitterCookie();
-
-    try {
-      await message.react("🔍"); // React with magnifying glass to show we're searching
-      await downloadFromSauceNAO(message.content, "./downloads", cookie || undefined);
-      await message.reactions.removeAll(); // Remove the search reaction
-      await message.react("👍");
-      await wait(5000); // Wait for 5 seconds before deleting the message
-      await message.delete();
-    } catch (error) {
-      console.error("Error downloading via SauceNAO:", error);
-      await message.reactions.removeAll();
-      await message.react("❌");
-      // Optionally send a brief error message
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      const errorMsg = await message.reply(`SauceNAO search failed: ${errorMessage}`);
-      setTimeout(() => errorMsg.delete().catch(() => {}), 10000); // Delete error message after 10 seconds
-    }
+  if (isDirectImageUrl(content)) {
+    await downloadAndPrompt(message, "🔍", "SauceNAO", () => downloadFromSauceNAO(content, DOWNLOADS_DIR, getTwitterCookie() || undefined));
   }
 
   // Handle Reddit links
-  if (isChannelMonitored(message.channel.id) && isRedditLink(message.content)) {
-    const cookie = getTwitterCookie();
+  if (isRedditLink(content)) {
+    await downloadAndPrompt(message, "📱", "Reddit", () => downloadRedditMedia(content, DOWNLOADS_DIR, getTwitterCookie() || undefined));
+  }
+};
 
-    try {
-      await message.react("📱"); // React with mobile phone to show we're processing Reddit
-      await downloadRedditMedia(message.content, "./downloads", cookie || undefined);
-      await message.reactions.removeAll(); // Remove the processing reaction
-      await message.react("👍");
-      await wait(5000); // Wait for 5 seconds before deleting the message
-      await message.delete();
-    } catch (error) {
-      console.error("Error downloading Reddit media:", error);
-      await message.reactions.removeAll();
-      await message.react("❌");
-      // Send error message that auto-deletes
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      const errorMsg = await message.reply(`Reddit download failed: ${errorMessage}`);
-      setTimeout(() => errorMsg.delete().catch(() => {}), 10000); // Delete error message after 10 seconds
-    }
+/**
+ * !folders                 - list the sort folders
+ * !folders add <name>      - add a sort folder
+ * !folders remove <name>   - remove a sort folder (files already in it are untouched)
+ */
+const handleFoldersCommand = async (message: Message, args: string[]) => {
+  const [action, ...rest] = args;
+  const name = rest.join(" ").trim().toLowerCase();
+  const folders = getSortFolders();
+
+  if (!action) {
+    await message.reply(`Sort folders: ${folders.map((f) => `\`${f}\``).join(", ")}\nUse \`!folders add <name>\` or \`!folders remove <name>\`.`);
+    return;
+  }
+
+  if (message.author.id !== config.admin) {
+    await message.reply("Only administrators can change the sort folders.");
+    return;
+  }
+
+  switch (action.toLowerCase()) {
+    case "add":
+      // Folder names become directory names and button IDs, so keep them simple
+      if (!/^[a-z0-9 _-]{1,50}$/.test(name)) {
+        await message.reply("Folder names may only contain letters, numbers, spaces, `-` and `_` (max 50 characters).");
+        return;
+      }
+      if (folders.includes(name)) {
+        await message.reply(`\`${name}\` is already a sort folder.`);
+        return;
+      }
+      if (folders.length >= MAX_SORT_FOLDERS) {
+        await message.reply(`You can have at most ${MAX_SORT_FOLDERS} sort folders.`);
+        return;
+      }
+      setSortFolders([...folders, name]);
+      await message.reply(`Added \`${name}\`. Sort folders: ${[...folders, name].map((f) => `\`${f}\``).join(", ")}`);
+      break;
+
+    case "remove":
+      if (!folders.includes(name)) {
+        await message.reply(`\`${name}\` is not a sort folder.`);
+        return;
+      }
+      setSortFolders(folders.filter((f) => f !== name));
+      await message.reply(`Removed \`${name}\`. Existing files in that folder were not touched.`);
+      break;
+
+    default:
+      await message.reply("Usage: `!folders`, `!folders add <name>` or `!folders remove <name>`.");
   }
 };

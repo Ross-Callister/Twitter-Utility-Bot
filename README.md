@@ -12,7 +12,7 @@ A Discord bot that automatically downloads media from Twitter/X posts, e621 post
 - Configurable monitoring per channel
 - Persistent settings using SQLite database
 - Support for protected/sensitive content with cookie authentication
-- Automatic image sorting using AI-powered classification
+- Manual sorting: each download gets a reply with one button per sort folder
 - Rate-limited gallery downloads (40-second delays between images)## Setup
 
 1. Install dependencies:
@@ -26,7 +26,6 @@ A Discord bot that automatically downloads media from Twitter/X posts, e621 post
    ```
    DISCORD_TOKEN="your_discord_token_here"
    ADMIN_USER_ID="your_admin_user_id_here"
-   FEATHERLESS_API_KEY="your_featherless_api_key_here"
 
    # For e621 downloads (optional, but recommended for rate limiting)
    E621_USERNAME="your_e621_username"
@@ -34,11 +33,6 @@ A Discord bot that automatically downloads media from Twitter/X posts, e621 post
 
    # For SauceNAO reverse image searching
    SAUCENAO_API_KEY="your_saucenao_api_key"
-
-   # AWS credentials for image processing
-   AWS_ACCESS_KEY_ID="your_aws_access_key"
-   AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
-   AWS_DEFAULT_REGION="us-east-1"
    ```
 
 3. Run the bot:
@@ -51,7 +45,6 @@ A Discord bot that automatically downloads media from Twitter/X posts, e621 post
 
 - **SauceNAO API Key**: Get one free at https://saucenao.com/user.php (30 searches per 30 seconds)
 - **e621 API Key**: Register at https://e621.net and generate an API key in your account settings
-- **Featherless API Key**: Required for AI image classification, get one at https://featherless.ai
 
 ## Docker Deployment
 
@@ -110,6 +103,14 @@ Instructions for getting Twitter cookie: https://github.com/TobyG74/twitter-down
   - The cookie value will be stored securely in the database
   - The command message will be automatically deleted for security
 
+### Sort Folders
+
+- `!folders` - Lists the sort folders (default: cartoon, furry, pony, real)
+- `!folders add <name>` - Adds a sort folder (admin only)
+- `!folders remove <name>` - Removes a sort folder; files already in it are left alone (admin only)
+
+Changes apply to new prompts; prompts already posted keep their original buttons.
+
 ### Manual Downloads
 
 - `!sauce <image_url>` - Manually reverse search an image using SauceNAO and download from the original source
@@ -129,12 +130,12 @@ Instructions for getting Twitter cookie: https://github.com/TobyG74/twitter-down
 1. When the bot starts, it creates a SQLite database to store settings and monitored channels
 2. The bot will only download media from channels that have been configured using `!config download`
 3. When a supported link is posted in a monitored channel:
-   - **Twitter/X links**: The bot reacts with 👍, downloads media, and automatically sorts images
-   - **e621 links**: The bot downloads the image and sorts it automatically
+   - **Twitter/X links**: The bot reacts with ⏳ and downloads the images/videos at full quality
+   - **e621 links**: The bot downloads the image
    - **Reddit links**: The bot reacts with 📱, processes posts/galleries, uses SauceNAO to find sources, and downloads via appropriate methods
    - **Direct image URLs**: The bot uses SauceNAO to reverse search the image, finds the original source, and downloads using the appropriate method
 4. For Reddit galleries, each image is processed individually with 40-second delays to respect API rate limits
-5. All downloaded images are automatically sorted into categorized folders using AI-powered classification
+5. Once downloaded, the bot replies with a button for each sort folder plus a Delete button. Pressing a folder button moves the files into `downloads/<folder>/` and removes both the bot's reply and your link message. Delete removes the downloaded files instead. Prompts wait indefinitely (they are stored in the database and survive restarts), so you can queue up many links and sort them later
 6. The bot reports any errors if downloads fail
 
 ## File Structure

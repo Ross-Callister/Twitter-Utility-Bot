@@ -3,6 +3,7 @@ import { discord_options } from "./discord_options";
 import { handleCommands } from "./commands/handleCommands";
 import { config } from "./config";
 import { getAllMonitoredChannels } from "./db/database";
+import { handleSortButton, isSortButton } from "./processing/manualSort";
 
 //create our clients
 export const client = new Discord.Client(discord_options);
@@ -23,5 +24,16 @@ client.on("ready", (e) => {
 });
 
 client.on(Events.MessageCreate, handleCommands);
+
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isButton() || !isSortButton(interaction.customId)) {
+    return;
+  }
+  try {
+    await handleSortButton(interaction);
+  } catch (error) {
+    console.error("Error handling sort button:", error);
+  }
+});
 
 client.login(config.token);

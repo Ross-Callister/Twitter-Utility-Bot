@@ -2,8 +2,7 @@ import { TwitterDL } from "twitter-downloader";
 import * as fs from "fs";
 import * as path from "path";
 import axios from "axios";
-import { Config } from "twitter-downloader/lib/types/config";
-import { sortImage } from "../processing/sorting";
+import { pipeline } from "stream/promises";
 
 /**
  * Downloads media from a Twitter link
@@ -49,77 +48,56 @@ export async function downloadTwitterMedia(initialUrl: string, outputDir: string
           console.log("No image URL found for media:", media);
           continue; // Skip if no image URL is found
         }
-        const imgUrl = media.image as string;
-        const extension = path.extname(imgUrl).split("?")[0].replace(".", ""); // Get the file extension without query parameters
+        const extension = path.extname(new URL(media.image).pathname).replace(".", "") || "jpg";
         const filename = `${result.author.username}_${result.id}_${i}.${extension}`;
         const filePath = path.join(outputDir, filename);
 
-        // Use the downloadFile helper to save the image
-        await downloadFile(imgUrl, filePath);
+        // media.image is the default (resized) rendition; ask for the original upload
+        await downloadFile(toOriginalImageUrl(media.image), filePath);
         downloadedFiles.push(filePath);
-      } else if (media.type === "video") {
-        const videoUrl = media.expandedUrl;
-        const filename = `twitter_video_${Date.now()}_${i}.mp4`;
+      } else if (media.type === "video" || media.type === "animated_gif") {
+        // expandedUrl is the tweet's web page, not the video. The actual mp4 files
+        // are in media.videos, one per quality level; take the highest bitrate.
+        const best = (media.videos ?? []).filter((v) => v.url).sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0))[0];
+        if (!best) {
+          console.log("No video URL found for media:", media);
+          continue;
+        }
+        const filename = `${result.author.username}_${result.id}_${i}.mp4`;
         const filePath = path.join(outputDir, filename);
 
-        // Use the downloadFile helper to save the video
-        await downloadFile(videoUrl, filePath);
+        await downloadFile(best.url, filePath);
         downloadedFiles.push(filePath);
       } else {
         console.log("Unsupported media type:", media.type);
       }
     }
-    //check that files actually have downloaded
-    downloadedFiles.forEach((file) => {
-      if (!fs.existsSync(file)) {
-        throw new Error(`File not downloaded: ${file}`);
-      } else {
-        console.log(`File downloaded successfully: ${file}`);
-      }
-    });
 
-    // Sort downloaded images into appropriate subfolders
-    const sortedFiles: string[] = [];
-    for (const filePath of downloadedFiles) {
-      try {
-        // Only sort image files (skip videos)
-        const extension = path.extname(filePath).toLowerCase();
-        if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(extension)) {
-          console.log(`Sorting image: ${filePath}`);
-          const result = await sortImage(filePath);
-          console.log(`Image description: ${result.image_description}`);
-          console.log(`Image sorted into folder: ${result.folder}`);
-
-          // Create the destination folder if it doesn't exist
-          const destinationDir = path.join(outputDir, result.folder);
-          if (!fs.existsSync(destinationDir)) {
-            fs.mkdirSync(destinationDir, { recursive: true });
-            console.log(`Created directory: ${destinationDir}`);
-          }
-
-          // Move the file to the appropriate subfolder
-          const fileName = path.basename(filePath);
-          const destinationPath = path.join(destinationDir, fileName);
-
-          fs.renameSync(filePath, destinationPath);
-          console.log(`Moved ${fileName} to ${result.folder}/`);
-          sortedFiles.push(destinationPath);
-        } else {
-          // Keep non-image files in their original location
-          sortedFiles.push(filePath);
-        }
-      } catch (error) {
-        console.error(`Error sorting file ${filePath}:`, error);
-        // If sorting fails, keep the file in its original location
-        sortedFiles.push(filePath);
-      }
+    if (downloadedFiles.length === 0) {
+      throw new Error("No downloadable media found in tweet");
     }
 
-    return sortedFiles;
+    downloadedFiles.forEach((file) => console.log(`File downloaded successfully: ${file}`));
+    return downloadedFiles;
   } catch (error) {
     console.error("Error downloading Twitter media:", error);
     throw error;
   }
+}
+
+/**
+ * Converts a pbs.twimg.com image URL to the original-resolution variant
+ * e.g. https://pbs.twimg.com/media/abc.jpg -> https://pbs.twimg.com/media/abc?format=jpg&name=orig
+ */
+function toOriginalImageUrl(imageUrl: string): string {
+  const parsed = new URL(imageUrl);
+  const extension = path.extname(parsed.pathname);
+  if (!extension) {
+    return imageUrl;
+  }
+  parsed.pathname = parsed.pathname.slice(0, -extension.length);
+  parsed.search = `?format=${extension.slice(1)}&name=orig`;
+  return parsed.toString();
 }
 
 /**
@@ -136,13 +114,13 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
     responseType: "stream",
   });
 
-  return new Promise((resolve, reject) => {
-    const writer = fs.createWriteStream(outputPath);
-    response.data.pipe(writer);
+  const contentType = String(response.headers["content-type"] ?? "");
+  if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
+    response.data.destroy();
+    throw new Error(`Expected image/video from ${url}, got "${contentType}"`);
+  }
 
-    writer.on("finish", resolve);
-    writer.on("error", reject);
-  });
+  await pipeline(response.data, fs.createWriteStream(outputPath));
 }
 
 export const isTwitterOrXLink = (url: string): boolean => {

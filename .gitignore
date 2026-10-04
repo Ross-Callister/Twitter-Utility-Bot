@@ -4,3 +4,4 @@ dist
 .env
 data.db
 sort_directives.json
+cookies.txt
