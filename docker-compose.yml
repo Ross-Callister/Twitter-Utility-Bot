@@ -4,6 +4,5 @@ services:
     volumes:
       - ./data:/app/data
       - ./downloads:/app/downloads
-    environment:
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
+    env_file: .env
     restart: unless-stopped

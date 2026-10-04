@@ -8,7 +8,7 @@ import { handleSortButton, isSortButton } from "./processing/manualSort";
 //create our clients
 export const client = new Discord.Client(discord_options);
 
-client.on("ready", (e) => {
+client.on("clientReady", (e) => {
   console.log("Utility bot has started!");
 
   // Log monitored channels on startup
