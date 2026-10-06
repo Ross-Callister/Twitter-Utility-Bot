@@ -13,25 +13,31 @@ import { downloadTwitterMedia, isTwitterOrXLink } from "../downloaders/twitter";
 import { downloadE621Media, isE621Link } from "../downloaders/e621";
 import { downloadFromSauceNAO, isDirectImageUrl } from "../downloaders/saucenao";
 import { downloadRedditMedia, isRedditLink } from "../downloaders/reddit";
-import { MAX_SORT_FOLDERS, postSortPrompt } from "../processing/manualSort";
+import { MAX_SORT_FOLDERS, postSortPrompt, SortPrompt } from "../processing/manualSort";
 
 const DOWNLOADS_DIR = "./downloads";
 
 /**
- * Runs a download while showing a progress reaction, then posts a sort prompt
- * for the downloaded files. On failure, reacts with ❌ and posts a short-lived error.
+ * Runs a download while showing a progress reaction. The sort prompt is posted straight
+ * away so a folder can be picked during the download. On failure, removes the prompt,
+ * reacts with ❌ and posts a short-lived error.
  */
 const downloadAndPrompt = async (message: Message, progressEmoji: string, label: string, download: () => Promise<string[]>) => {
   const progress = await message.react(progressEmoji);
+  const downloading = download();
+  downloading.catch(() => {}); // Handled below; stops an early failure being reported as unhandled while the prompt posts
+  let prompt: SortPrompt | undefined;
   try {
-    const files = await download();
+    prompt = await postSortPrompt(message);
+    const files = await downloading;
     if (files.length === 0) {
       throw new Error("No files were downloaded");
     }
     await progress.users.remove(message.client.user.id);
-    await postSortPrompt(message, files);
+    await prompt.finish(files);
   } catch (error) {
     console.error(`Error downloading ${label} media:`, error);
+    await prompt?.fail();
     await progress.users.remove(message.client.user.id).catch(() => {});
     await message.react("❌");
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";

@@ -135,7 +135,7 @@ Changes apply to new prompts; prompts already posted keep their original buttons
    - **Reddit links**: The bot reacts with 📱, processes posts/galleries, uses SauceNAO to find sources, and downloads via appropriate methods
    - **Direct image URLs**: The bot uses SauceNAO to reverse search the image, finds the original source, and downloads using the appropriate method
 4. For Reddit galleries, each image is processed individually with 40-second delays to respect API rate limits
-5. Once downloaded, the bot replies with a button for each sort folder plus a Delete button. Pressing a folder button moves the files into `downloads/<folder>/` and removes both the bot's reply and your link message. Delete removes the downloaded files instead. Prompts wait indefinitely (they are stored in the database and survive restarts), so you can queue up many links and sort them later
+5. As soon as the download starts, the bot replies with a button for each sort folder plus a Delete button. You can press one straight away: the choice is highlighted, can still be changed, and is applied once the download finishes. Pressing a folder button moves the files into `downloads/<folder>/` and removes both the bot's reply and your link message. Delete removes the downloaded files instead. Prompts wait indefinitely (they are stored in the database and survive restarts), so you can queue up many links and sort them later
 6. The bot reports any errors if downloads fail
 
 ## File Structure
